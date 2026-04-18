@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RAG Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+
+<h1>Resource Allocation Graph Visualizer</h1>
+
+<div class="controls">
+    <input type="text" id="nodeName" placeholder="Enter P1 or R1">
+    <button onclick="addNode()">Add Node</button>
+
+    <input type="text" id="from" placeholder="From">
+    <input type="text" id="to" placeholder="To">
+    <button onclick="addEdge()">Add Edge</button>
+
+    <button onclick="checkDeadlock()">Check Deadlock</button>
+</div>
+
+<div id="network"></div>
+
+<h2 id="result"></h2>
+<button onclick="setMode('process', event)">Add Process</button>
+<button onclick="setMode('resource', event)">Add Resource</button>
+<button onclick="setMode('edge', event)">Connect Nodes</button>
+
+<script src="script.js"></script>
+</body>
+</html>
