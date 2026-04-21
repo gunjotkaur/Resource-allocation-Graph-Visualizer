@@ -1,33 +1,194 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>RAG Visualizer</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<html lang="en" data-theme="dark"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Visualizer — Deadlock Detection</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script> <!-- for drawing network such as circles, square and nodes-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css"> 
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> <!-- for save as image feature-->
 </head>
 <body>
 
-<h1>Resource Allocation Graph Visualizer</h1>
+  <!-- ══ HEADER ══════════════════════════════════════════════ -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-icon">⬡</div>
+      <div class="header-titles">
+        <h1>RAG <span class="accent">Visualizer</span></h1>
+        <p class="subtitle">Resource Allocation Graph · Deadlock Detection Engine</p>
+      </div>
+    </div>
 
-<div class="controls">
-    <input type="text" id="nodeName" placeholder="Enter P1 or R1">
-    <button onclick="addNode()">Add Node</button>
+    <div class="header-center">
+      <div class="theme-switcher">
+        <span class="theme-label">THEME</span>
+        <button class="theme-pill active" data-theme="dark" onclick="switchTheme('dark')" title="Dark">🌑</button>
+        <button class="theme-pill" data-theme="light" onclick="switchTheme('light')" title="Light">☀️</button>
+        <button class="theme-pill" data-theme="cyberpunk" onclick="switchTheme('cyberpunk')" title="Cyberpunk">⚡</button>
+        <button class="theme-pill" data-theme="matrix" onclick="switchTheme('matrix')" title="Matrix">🟢</button>
+        <button class="theme-pill" data-theme="ocean" onclick="switchTheme('ocean')" title="Ocean">🌊</button>
+      </div> <!-- user defined function in js-->
+    </div>
 
-    <input type="text" id="from" placeholder="From">
-    <input type="text" id="to" placeholder="To">
-    <button onclick="addEdge()">Add Edge</button>
+    <div class="header-right">
+      <div class="status-pill" id="statusPill">
+        <span class="status-dot idle"></span>
+        <span id="statusText">Ready</span>
+      </div>
+    </div>
+  </header>
 
-    <button onclick="checkDeadlock()">Check Deadlock</button>
-</div>
+  <!-- ══ MAIN LAYOUT ═════════════════════════════════════════ -->
+  <main class="layout">
 
-<div id="network"></div>
+    <!-- ── LEFT CONTROL PANEL ───────────────────────────── -->
+    <aside class="control-panel glass">
 
-<h2 id="result"></h2>
-<button onclick="setMode('process', event)">Add Process</button>
-<button onclick="setMode('resource', event)">Add Resource</button>
-<button onclick="setMode('edge', event)">Connect Nodes</button>
+      <section class="panel-section">
+        <h3 class="section-label">ADD NODES</h3>
+        <button id="btnProcess" class="mode-btn process-btn" onclick="setMode('process')">
+          <span class="btn-icon">◉</span><span class="btn-text">Add Process</span><span class="btn-badge">P</span>
+        </button>
+        <button id="btnResource" class="mode-btn resource-btn" onclick="setMode('resource')">
+          <span class="btn-icon">▣</span><span class="btn-text">Add Resource</span><span class="btn-badge">R</span>
+        </button>
+      </section>
 
-<script src="script.js"></script>
-</body>
-</html>
+      <section class="panel-section">
+        <h3 class="section-label">EDGES</h3>
+        <button id="btnConnect" class="mode-btn connect-btn" onclick="setMode('connect')">
+          <span class="btn-icon">⟶</span><span class="btn-text">Connect Nodes</span><span class="btn-badge">E</span>
+        </button>
+        <div class="edge-hint" id="edgeHint" style="display:none">
+          <p id="edgeHintText">Click source node…</p>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="section-label">ANALYSIS</h3>
+        <button class="mode-btn detect-btn" onclick="checkDeadlock()">
+          <span class="btn-icon">⚙</span><span class="btn-text">Detect Deadlock</span>
+        </button>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="section-label">GRAPH</h3>
+        <button class="mode-btn reset-btn" onclick="resetGraph()">
+          <span class="btn-icon">↺</span><span class="btn-text">Reset Graph</span>
+        </button>
+        <button class="mode-btn save-btn" onclick="saveImage()">
+          <span class="btn-icon">⤓</span><span class="btn-text">Save as Image</span>
+        </button>
+      </section>
+
+      <section class="panel-section legend">
+        <h3 class="section-label">LEGEND</h3> <!-- legend:- dictionary for symbols-->
+        <div class="legend-row"><span class="legend-node process-legend"></span><span>Process (circle)</span></div>
+        <div class="legend-row"><span class="legend-node resource-legend"></span><span>Resource (square)</span></div>
+        <div class="legend-row"><span class="legend-arrow req-arrow">→</span><span>P→R : Request</span></div>
+        <div class="legend-row"><span class="legend-arrow alloc-arrow">→</span><span>R→P : Allocation</span></div>
+        <div class="legend-row"><span class="legend-arrow cycle-arrow">→</span><span>Cycle (Deadlock)</span></div>
+      </section>
+
+      <section class="panel-section stats-section">
+        <h3 class="section-label">GRAPH STATS</h3>
+        <div class="stat-row"><span class="stat-label">Processes</span><span class="stat-val" id="statProcesses">3</span></div>
+        <div class="stat-row"><span class="stat-label">Resources</span><span class="stat-val" id="statResources">3</span></div>
+        <div class="stat-row"><span class="stat-label">Edges</span>    <span class="stat-val" id="statEdges">6</span></div>
+      </section>
+
+    </aside>
+
+    <!-- ── CANVAS AREA ───────────────────────────────────── -->
+    <div class="canvas-wrapper">
+      <div id="ragCanvas"><div class="vis-network" tabindex="900" style="position: relative; overflow: hidden; touch-action: pan-y; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); width: 100%; height: 100%;"><canvas width="2766" style="position: relative; touch-action: none; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0); width: 100%; height: 100%;" height="3702"></canvas></div></div>
+
+      <div class="mode-indicator glass" id="modeIndicator">
+        <span id="modeText">← Select a mode to begin</span>
+      </div>
+
+      <div class="result-banner" id="resultBanner" style="display:none">
+        <div class="banner-inner" id="bannerInner">
+          <span class="banner-icon" id="bannerIcon"></span>
+          <span class="banner-text" id="bannerText"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT ANALYSIS PANEL ─────────────────────────── -->
+    <aside class="analysis-panel glass" id="analysisPanel">
+
+      <div class="analysis-header-block">
+        <span class="analysis-header-icon">🔍</span>
+        <div>
+          <h2 class="analysis-title">Deadlock Analysis</h2>
+          <p class="analysis-sub">Cause, cycle &amp; resolution</p>
+        </div>
+      </div>
+
+      <!-- Idle placeholder -->
+      <div id="analysisIdle" class="analysis-idle">
+        <div class="idle-glyph">⬡</div>
+        <p>Click <strong>Detect Deadlock</strong> to run full analysis — cycle path, cause breakdown, Coffman conditions, and resolution steps.</p>
+      </div>
+
+      <!-- Active results -->
+      <div id="analysisResults" style="display:none" class="analysis-scroll">
+
+        <!-- Verdict -->
+        <div class="verdict-box" id="verdictBox">
+          <span class="verdict-emoji" id="verdictEmoji"></span>
+          <div>
+            <div class="verdict-title" id="verdictTitle"></div>
+            <div class="verdict-subtitle" id="verdictSubtitle"></div>
+          </div>
+        </div>
+
+        <!-- Cycle visual path -->
+        <div id="cycleSection" class="analysis-section" style="display:none">
+          <h4 class="asub">🔴 Detected Cycle Path</h4>
+          <div class="cycle-path-scroll" id="cyclePathVisual"></div>
+        </div>
+
+        <!-- Why did it happen -->
+        <div id="whySection" class="analysis-section" style="display:none">
+          <h4 class="asub">❓ Why Did Deadlock Occur?</h4>
+          <div id="whyBody"></div>
+        </div>
+
+        <!-- Coffman Conditions -->
+        <div id="coffmanSection" class="analysis-section" style="display:none">
+          <h4 class="asub">📋 Coffman Conditions</h4>
+          <div id="coffmanBody"></div>
+        </div>
+
+        <!-- Per-process breakdown -->
+        <div id="processSection" class="analysis-section">
+          <h4 class="asub">🧩 Process Breakdown</h4>
+          <div id="processBody"></div>
+        </div>
+
+        <!-- Resolution -->
+        <div id="resolutionSection" class="analysis-section" style="display:none">
+          <h4 class="asub">💡 How to Resolve</h4>
+          <div id="resolutionBody"></div>
+        </div>
+
+        <!-- Safe order -->
+        <div id="safeSection" class="analysis-section" style="display:none">
+          <h4 class="asub">✅ Safe Execution Order</h4>
+          <div id="safeBody"></div>
+        </div>
+
+      </div><!-- /analysisResults -->
+
+    </aside>
+
+  </main>
+
+  <div class="toast" id="toast" style="border-color: rgba(0, 210, 255, 0.25); color: rgb(0, 210, 255);">Demo graph loaded — try Detect Deadlock!</div>
+  <script src="script.js"></script>
+
+
+</body></html>
