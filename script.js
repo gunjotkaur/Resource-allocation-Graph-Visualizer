@@ -390,8 +390,14 @@ const GraphManager = {
 
   removeProcess(nodeId) {
     const node = state.nodesDS.get(nodeId);
-
     if (node && node.nodeType === "process") {
+      // Remove all edges connected to this node from the DataSet
+      const connectedEdgeIds = state.edgesDS
+        .get()
+        .filter((e) => e.from === nodeId || e.to === nodeId)
+        .map((e) => e.id);
+      state.edgesDS.remove(connectedEdgeIds);
+
       state.nodesDS.remove(nodeId);
       showToast(`${nodeId} removed`);
       updateStats();
@@ -401,8 +407,14 @@ const GraphManager = {
 
   removeResource(nodeId) {
     const node = state.nodesDS.get(nodeId);
-
     if (node && node.nodeType === "resource") {
+      // Remove all edges connected to this node from the DataSet
+      const connectedEdgeIds = state.edgesDS
+        .get()
+        .filter((e) => e.from === nodeId || e.to === nodeId)
+        .map((e) => e.id);
+      state.edgesDS.remove(connectedEdgeIds);
+
       state.nodesDS.remove(nodeId);
       showToast(`${nodeId} removed`);
       updateStats();
